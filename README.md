@@ -6,6 +6,7 @@ Ung dung Node.js don gian de diem danh:
 - Ma QR chua link check-in co token.
 - Nguoi dung quet QR de mo trang check-in.
 - Trang check-in thu thap browser fingerprint + thong tin thiet bi.
+- Trang check-in co thu thap them GPS (neu nguoi dung cap quyen vi tri).
 - Du lieu gui ve server va hien thi JSON theo thoi gian thuc.
 
 ## Chay du an
@@ -23,3 +24,4 @@ Mo trinh duyet:
 
 - Du lieu dang luu in-memory, khoi dong lai server se mat.
 - Ban nen thong bao ro cho nguoi dung ve viec thu thap thong tin thiet bi truoc khi diem danh.
+- Geolocation tren dien thoai thuong can secure context (HTTPS). `localhost` van duoc phep, nhung URL LAN bang HTTP co the bi trinh duyet chan lay GPS.

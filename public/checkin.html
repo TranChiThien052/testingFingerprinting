@@ -12,7 +12,7 @@
       <section class="card">
         <h1>Check-in diem danh</h1>
         <p>
-          Nhan vao nut duoi day de gui thong tin thiet bi (fingerprint + metadata) phuc vu diem danh.
+          Nhan vao nut duoi day de gui thong tin thiet bi (fingerprint + metadata) va GPS phuc vu diem danh.
         </p>
         <button id="checkinBtn">Diem danh ngay</button>
         <p id="statusText"></p>
@@ -30,6 +30,48 @@
       const jsonOutput = document.getElementById("jsonOutput");
       const token = window.location.pathname.split("/").pop();
 
+      function getGpsLocation() {
+        return new Promise((resolve) => {
+          if (!("geolocation" in navigator)) {
+            resolve({
+              enabled: false,
+              status: "unavailable",
+              error: "Trinh duyet khong ho tro Geolocation API"
+            });
+            return;
+          }
+
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              resolve({
+                enabled: true,
+                status: "granted",
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                altitude: position.coords.altitude,
+                heading: position.coords.heading,
+                speed: position.coords.speed,
+                timestamp: new Date(position.timestamp).toISOString()
+              });
+            },
+            (error) => {
+              resolve({
+                enabled: true,
+                status: "denied-or-failed",
+                error: error.message,
+                code: error.code
+              });
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 12000,
+              maximumAge: 0
+            }
+          );
+        });
+      }
+
       async function collectDeviceData() {
         if (typeof FingerprintJS === "undefined") {
           throw new Error("Khong tai duoc FingerprintJS. Hay thu refresh trang va kiem tra server.");
@@ -37,6 +79,7 @@
 
         const fp = await FingerprintJS.load();
         const result = await fp.get();
+        const gps = await getGpsLocation();
 
         return {
           fingerprint: {
@@ -63,6 +106,7 @@
             colorDepth: window.screen.colorDepth,
             pixelRatio: window.devicePixelRatio
           },
+          gps,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           timestamp: new Date().toISOString()
         };
@@ -87,7 +131,11 @@
             throw new Error(data.error || "Khong gui duoc du lieu diem danh");
           }
 
-          statusText.textContent = "Diem danh thanh cong.";
+          if (payload.gps && payload.gps.status === "granted") {
+            statusText.textContent = "Diem danh thanh cong. Da thu thap GPS.";
+          } else {
+            statusText.textContent = "Diem danh thanh cong. GPS bi tu choi hoac khong kha dung.";
+          }
         } catch (error) {
           statusText.textContent = `Loi: ${error.message}`;
           checkinBtn.disabled = false;
