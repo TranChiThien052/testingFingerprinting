@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR Diem Danh</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <section class="card">
+        <h1>He thong diem danh bang QR</h1>
+        <p>
+          Bam <strong>Tao ma QR</strong>, sau do mo camera dien thoai de quet. Trang check-in se thu
+          thap fingerprint trinh duyet va thong tin thiet bi de diem danh.
+        </p>
+
+        <button id="generateBtn">Tao ma QR</button>
+
+        <div id="qrSection" class="hidden">
+          <p><strong>Token:</strong> <span id="tokenText"></span></p>
+          <img id="qrImage" alt="QR code" />
+          <p>
+            Link check-in:
+            <a id="checkinLink" target="_blank" rel="noreferrer"></a>
+          </p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Du lieu diem danh (JSON)</h2>
+        <pre id="jsonOutput">[]</pre>
+      </section>
+    </main>
+
+    <script>
+      const generateBtn = document.getElementById("generateBtn");
+      const qrSection = document.getElementById("qrSection");
+      const qrImage = document.getElementById("qrImage");
+      const tokenText = document.getElementById("tokenText");
+      const checkinLink = document.getElementById("checkinLink");
+      const jsonOutput = document.getElementById("jsonOutput");
+
+      let activeToken = null;
+      let pollTimer = null;
+
+      async function loadRecords() {
+        if (!activeToken) return;
+        const response = await fetch(`/api/records/${activeToken}`);
+        const data = await response.json();
+        jsonOutput.textContent = JSON.stringify(data, null, 2);
+      }
+
+      generateBtn.addEventListener("click", async () => {
+        generateBtn.disabled = true;
+        generateBtn.textContent = "Dang tao...";
+
+        try {
+          const response = await fetch("/api/generate", { method: "POST" });
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || "Khong tao duoc ma QR");
+          }
+
+          activeToken = data.token;
+          qrImage.src = data.qrDataUrl;
+          tokenText.textContent = data.token;
+          checkinLink.href = data.checkinUrl;
+          checkinLink.textContent = data.checkinUrl;
+          qrSection.classList.remove("hidden");
+
+          await loadRecords();
+          if (pollTimer) clearInterval(pollTimer);
+          pollTimer = setInterval(loadRecords, 2000);
+        } catch (error) {
+          alert(error.message);
+        } finally {
+          generateBtn.disabled = false;
+          generateBtn.textContent = "Tao ma QR";
+        }
+      });
+    </script>
+  </body>
+</html>
