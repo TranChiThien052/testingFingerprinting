@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Check-in Diem Danh</title>
     <link rel="stylesheet" href="/style.css" />
-    <script src="/vendor/fingerprintjs/fp.min.js"></script>
   </head>
   <body>
     <main class="container single">
@@ -24,6 +23,7 @@
       </section>
     </main>
 
+    <script src="/vendor/fingerprintjs/fp.min.js"></script>
     <script>
       const checkinBtn = document.getElementById("checkinBtn");
       const statusText = document.getElementById("statusText");
@@ -66,29 +66,108 @@
             return { error: "Canvas 2D not supported" };
           }
 
-          canvas.width = 280;
-          canvas.height = 60;
+          canvas.width = 400;
+          canvas.height = 200;
 
-          const gradient = ctx.createLinearGradient(0, 0, 280, 60);
-          gradient.addColorStop(0, "#ff0000");
-          gradient.addColorStop(1, "#0000ff");
+          // Draw complex patterns that will render differently on different GPUs
+          // Background gradient
+          const gradient = ctx.createLinearGradient(0, 0, 400, 200);
+          gradient.addColorStop(0, "#ff6600");
+          gradient.addColorStop(0.5, "#0099ff");
+          gradient.addColorStop(1, "#ff00ff");
           ctx.fillStyle = gradient;
-          ctx.fillRect(0, 0, 280, 60);
+          ctx.fillRect(0, 0, 400, 200);
 
-          ctx.textBaseline = "top";
-          ctx.font = '14px "Arial"';
-          ctx.fillStyle = "#ffffff";
-          ctx.fillText("Canvas fingerprint test 1234567890", 10, 10);
-
-          ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+          // Radial gradient circle
+          const radialGradient = ctx.createRadialGradient(200, 100, 20, 200, 100, 100);
+          radialGradient.addColorStop(0, "rgba(255, 255, 255, 0.8)");
+          radialGradient.addColorStop(1, "rgba(0, 0, 0, 0.3)");
+          ctx.fillStyle = radialGradient;
           ctx.beginPath();
-          ctx.arc(100, 25, 20, 0, Math.PI * 2, true);
+          ctx.arc(200, 100, 100, 0, Math.PI * 2);
           ctx.fill();
 
-          const dataUrl = canvas.toDataURL();
+          // Complex bezier curves
+          ctx.strokeStyle = "rgba(255, 0, 0, 0.6)";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(50, 50);
+          ctx.bezierCurveTo(100, 20, 300, 180, 350, 50);
+          ctx.stroke();
+
+          // Multiple text layers with different fonts/sizes (affects rendering)
+          ctx.textBaseline = "top";
+          
+          ctx.font = "bold 16px Arial";
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText("Canvas-FP-Test", 20, 20);
+
+          ctx.font = "italic 12px Georgia";
+          ctx.fillStyle = "#cccccc";
+          ctx.fillText("Device.Graphics.Rasterize", 20, 45);
+
+          ctx.font = "14px Courier";
+          ctx.fillStyle = "#00ff00";
+          ctx.fillText("GPU:Antialiasing[DIFF]", 20, 65);
+
+          // Draw with shadow (GPU-dependent rendering)
+          ctx.shadowColor = "rgba(100, 150, 200, 0.8)";
+          ctx.shadowBlur = 15;
+          ctx.shadowOffsetX = 3;
+          ctx.shadowOffsetY = 3;
+          ctx.fillStyle = "rgba(255, 100, 50, 0.7)";
+          ctx.fillRect(250, 120, 100, 60);
+          ctx.shadowBlur = 0;
+
+          // Draw arcs with different angles
+          ctx.strokeStyle = "rgba(0, 255, 255, 0.8)";
+          ctx.lineWidth = 2;
+          for (let i = 0; i < 8; i++) {
+            ctx.beginPath();
+            ctx.arc(340, 170, 25, (i * Math.PI) / 4, ((i + 1) * Math.PI) / 4);
+            ctx.stroke();
+          }
+
+          // Draw deterministic checkerboard pattern (no randomness)
+          ctx.fillStyle = "rgba(128, 128, 128, 0.5)";
+          const checkSize = 5;
+          for (let x = 10; x < 50; x += checkSize * 2) {
+            for (let y = 140; y < 180; y += checkSize * 2) {
+              ctx.fillRect(x, y, checkSize, checkSize);
+              ctx.fillRect(x + checkSize, y + checkSize, checkSize, checkSize);
+            }
+          }
+          
+          // Draw deterministic line pattern
+          ctx.strokeStyle = "rgba(200, 100, 50, 0.6)";
+          ctx.lineWidth = 1;
+          for (let x = 10; x < 50; x += 3) {
+            ctx.beginPath();
+            ctx.moveTo(x, 140);
+            ctx.lineTo(x, 180);
+            ctx.stroke();
+          }
+
+          // Extract pixel data for detailed fingerprinting
+          const imageData = ctx.getImageData(0, 0, 400, 200);
+          const pixelBytes = imageData.data;
+
+          // Hash the pixel data (GPU antialiasing and rendering will differ)
+          let pixelHash = 0;
+          for (let i = 0; i < pixelBytes.length; i += 4) {
+            const r = pixelBytes[i];
+            const g = pixelBytes[i + 1];
+            const b = pixelBytes[i + 2];
+            const a = pixelBytes[i + 3];
+            const pixel = (r << 24) | (g << 16) | (b << 8) | a;
+            pixelHash = ((pixelHash << 5) - pixelHash) + pixel;
+            pixelHash = pixelHash & pixelHash; // Keep it 32-bit
+          }
+
           return {
             supported: true,
-            hash: dataUrl.substring(0, 50)
+            pixelHash: (pixelHash >>> 0).toString(16).padStart(8, "0"),
+            complexity: "high"
           };
         } catch (e) {
           return { supported: false, error: e.message };
@@ -137,22 +216,100 @@
         });
       }
 
-      async function collectDeviceData() {
-        if (typeof FingerprintJS === "undefined") {
-          throw new Error("Khong tai duoc FingerprintJS. Hay thu refresh trang va kiem tra server.");
+      async function getFingerprintingData() {
+        if (!window.FingerprintJS) {
+          return {
+            enabled: false,
+            source: "fingerprintjs",
+            error: "FingerprintJS library not loaded"
+          };
         }
 
-        const fp = await FingerprintJS.load();
-        const result = await fp.get();
-        const gps = await getGpsLocation();
+        try {
+          const fpAgent = await window.FingerprintJS.load();
+          const fpResult = await fpAgent.get();
+
+          return {
+            enabled: true,
+            source: "fingerprintjs",
+            visitorId: fpResult.visitorId,
+            confidence: fpResult.confidence?.score ?? null,
+            requestId: fpResult.requestId || null,
+            version: fpResult.version || null
+          };
+        } catch (error) {
+          return {
+            enabled: false,
+            source: "fingerprintjs",
+            error: error.message
+          };
+        }
+      }
+
+      async function generateDeviceId() {
         const webgl = getWebGLInfo();
         const canvas = getCanvasFingerprint();
+        const screen = {
+          w: window.screen.width,
+          h: window.screen.height,
+          dpr: window.devicePixelRatio
+        };
+        
+        // Create unique fingerprint by combining multiple GPU-dependent signals
+        const fingerprints = {
+          canvas: canvas.pixelHash || "",
+          webgl_vendor: (webgl.vendor || "").substring(0, 20),
+          webgl_renderer: (webgl.renderer || "").substring(0, 30),
+          screen: `${screen.w}x${screen.h}@${screen.dpr}`,
+          platform: navigator.platform || "",
+          hc: navigator.hardwareConcurrency || 0,
+          dm: navigator.deviceMemory || 0
+        };
+
+        // Simple hash function for combining fingerprints
+        const fullString = JSON.stringify(fingerprints);
+        let hash = 0;
+        for (let i = 0; i < fullString.length; i++) {
+          const char = fullString.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash;
+        }
+
+        const deviceId = `dv_${(hash >>> 0).toString(16).padStart(8, "0")}_${canvas.pixelHash || "unknown"}`;
+        
+        return {
+          deviceId,
+          fingerprints,
+          canvas,
+          webgl
+        };
+      }
+
+      async function collectDeviceData() {
+        const gps = await getGpsLocation();
+        const deviceFingerprint = await generateDeviceId();
+        const fingerprinting = await getFingerprintingData();
+        const webgl = getWebGLInfo();
+        const canvas = getCanvasFingerprint();
+        const generatedDeviceId = deviceFingerprint.deviceId;
+        const fingerprintDeviceId = fingerprinting.visitorId
+          ? `fp_${fingerprinting.visitorId}`
+          : null;
 
         return {
-          fingerprint: {
-            visitorId: result.visitorId,
-            confidence: result.confidence,
-            version: result.version
+          deviceId: generatedDeviceId,
+          fingerprintDeviceId,
+          fingerprinting,
+          canvas: {
+            pixelHash: canvas.pixelHash,
+            complexity: canvas.complexity,
+            supported: canvas.supported
+          },
+          webgl: {
+            vendor: webgl.vendor,
+            renderer: webgl.renderer,
+            version: webgl.version,
+            maxTextureSize: webgl.maxTextureSize
           },
           browser: {
             userAgent: navigator.userAgent,
@@ -172,10 +329,6 @@
             height: window.screen.height,
             colorDepth: window.screen.colorDepth,
             pixelRatio: window.devicePixelRatio
-          },
-          graphics: {
-            webgl: webgl,
-            canvas: canvas
           },
           gps,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -202,11 +355,23 @@
             throw new Error(data.error || "Khong gui duoc du lieu diem danh");
           }
 
+          const deviceId = payload.deviceId || "unknown";
+          const sameDeviceCount = data.sameDeviceCount || 0;
+          const totalUniqueDevices = data.totalUniqueDevices || 1;
+          const isFirstTime = data.isFirstTimeThisDevice ? "lan dau tien" : `lan ${sameDeviceCount}`;
+
+          let statusMsg = `✓ Diem danh thanh cong!\n`;
+          statusMsg += `Device ID: ${deviceId.substring(0, 16)}...\n`;
+          statusMsg += `Thiet bi nay: ${isFirstTime} diem danh trong phien nay\n`;
+          statusMsg += `Tong so thiet bi khac nhau: ${totalUniqueDevices}`;
+
           if (payload.gps && payload.gps.status === "granted") {
-            statusText.textContent = "Diem danh thanh cong. Da thu thap GPS.";
-          } else {
-            statusText.textContent = "Diem danh thanh cong. GPS bi tu choi hoac khong kha dung.";
+            statusMsg += `\n✓ GPS: ${payload.gps.latitude.toFixed(4)}, ${payload.gps.longitude.toFixed(4)}`;
+          } else if (payload.gps && payload.gps.status === "denied-or-failed") {
+            statusMsg += `\n✗ GPS: Tu choi hoac khong khong`;
           }
+
+          statusText.textContent = statusMsg;
         } catch (error) {
           statusText.textContent = `Loi: ${error.message}`;
           checkinBtn.disabled = false;

@@ -55,10 +55,12 @@ app.post("/api/checkin/:token", (req, res) => {
     return res.status(404).json({ error: "Ma diem danh khong hop le hoac da het han." });
   }
 
+  const deviceId = req.body?.deviceId || "unknown";
   const record = {
     submittedAt: new Date().toISOString(),
     ip: req.headers["x-forwarded-for"] || req.socket.remoteAddress,
     userAgent: req.get("user-agent") || "unknown",
+    deviceId,
     payload: req.body || {}
   };
 
