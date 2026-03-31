@@ -30,6 +30,71 @@
       const jsonOutput = document.getElementById("jsonOutput");
       const token = window.location.pathname.split("/").pop();
 
+      function getWebGLInfo() {
+        try {
+          const canvas = document.createElement("canvas");
+          const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+          if (!gl) {
+            return { supported: false, error: "WebGL not supported" };
+          }
+
+          const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+          const vendor = gl.getParameter(debugInfo ? gl.UNMASKED_VENDOR_WEBGL : gl.VENDOR);
+          const renderer = gl.getParameter(debugInfo ? gl.UNMASKED_RENDERER_WEBGL : gl.RENDERER);
+          const version = gl.getParameter(gl.VERSION);
+          const shadingLanguageVersion = gl.getParameter(gl.SHADING_LANGUAGE_VERSION);
+
+          return {
+            supported: true,
+            vendor: vendor,
+            renderer: renderer,
+            version: version,
+            shadingLanguageVersion: shadingLanguageVersion,
+            maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE),
+            maxViewportDims: gl.getParameter(gl.MAX_VIEWPORT_DIMS)
+          };
+        } catch (e) {
+          return { supported: false, error: e.message };
+        }
+      }
+
+      function getCanvasFingerprint() {
+        try {
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            return { error: "Canvas 2D not supported" };
+          }
+
+          canvas.width = 280;
+          canvas.height = 60;
+
+          const gradient = ctx.createLinearGradient(0, 0, 280, 60);
+          gradient.addColorStop(0, "#ff0000");
+          gradient.addColorStop(1, "#0000ff");
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, 280, 60);
+
+          ctx.textBaseline = "top";
+          ctx.font = '14px "Arial"';
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText("Canvas fingerprint test 1234567890", 10, 10);
+
+          ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+          ctx.beginPath();
+          ctx.arc(100, 25, 20, 0, Math.PI * 2, true);
+          ctx.fill();
+
+          const dataUrl = canvas.toDataURL();
+          return {
+            supported: true,
+            hash: dataUrl.substring(0, 50)
+          };
+        } catch (e) {
+          return { supported: false, error: e.message };
+        }
+      }
+
       function getGpsLocation() {
         return new Promise((resolve) => {
           if (!("geolocation" in navigator)) {
@@ -80,6 +145,8 @@
         const fp = await FingerprintJS.load();
         const result = await fp.get();
         const gps = await getGpsLocation();
+        const webgl = getWebGLInfo();
+        const canvas = getCanvasFingerprint();
 
         return {
           fingerprint: {
@@ -105,6 +172,10 @@
             height: window.screen.height,
             colorDepth: window.screen.colorDepth,
             pixelRatio: window.devicePixelRatio
+          },
+          graphics: {
+            webgl: webgl,
+            canvas: canvas
           },
           gps,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,

@@ -7,6 +7,8 @@ Ung dung Node.js don gian de diem danh:
 - Nguoi dung quet QR de mo trang check-in.
 - Trang check-in thu thap browser fingerprint + thong tin thiet bi.
 - Trang check-in co thu thap them GPS (neu nguoi dung cap quyen vi tri).
+- Trang check-in thu thap WebGL info (vendor, renderer, version).
+- Trang check-in thu thap Canvas fingerprint bang cach ve tren canvas va lay hash.
 - Du lieu gui ve server va hien thi JSON theo thoi gian thuc.
 
 ## Chay du an
