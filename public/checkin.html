@@ -33,25 +33,61 @@
       function getWebGLInfo() {
         try {
           const canvas = document.createElement("canvas");
-          const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-          if (!gl) {
+          const webgl2 = canvas.getContext("webgl2");
+          const webgl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+          const gl = webgl2 || webgl;
+          const contextType = webgl2 ? "webgl2" : (webgl ? "webgl" : null);
+
+          if (!gl || !contextType) {
             return { supported: false, error: "WebGL not supported" };
           }
 
+          const safeGetParameter = (parameter) => {
+            try {
+              const value = gl.getParameter(parameter);
+              return typeof value === "string" ? value.trim() : value;
+            } catch (error) {
+              return null;
+            }
+          };
+
           const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
-          const vendor = gl.getParameter(debugInfo ? gl.UNMASKED_VENDOR_WEBGL : gl.VENDOR);
-          const renderer = gl.getParameter(debugInfo ? gl.UNMASKED_RENDERER_WEBGL : gl.RENDERER);
+
+          let vendor = null;
+          let renderer = null;
+
+          if (debugInfo) {
+            vendor = safeGetParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+            renderer = safeGetParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+          }
+
+          if (!vendor) {
+            vendor = safeGetParameter(gl.VENDOR);
+          }
+          if (!renderer) {
+            renderer = safeGetParameter(gl.RENDERER);
+          }
+
+          const normalizedVendor = vendor || "unknown";
+          const normalizedRenderer = renderer || "unknown";
           const version = gl.getParameter(gl.VERSION);
           const shadingLanguageVersion = gl.getParameter(gl.SHADING_LANGUAGE_VERSION);
 
           return {
             supported: true,
-            vendor: vendor,
-            renderer: renderer,
+            contextType,
+            vendor: normalizedVendor,
+            renderer: normalizedRenderer,
             version: version,
             shadingLanguageVersion: shadingLanguageVersion,
             maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE),
-            maxViewportDims: gl.getParameter(gl.MAX_VIEWPORT_DIMS)
+            maxViewportDims: gl.getParameter(gl.MAX_VIEWPORT_DIMS),
+            diagnostics: {
+              debugExtensionAvailable: Boolean(debugInfo),
+              vendorWasUnavailable: !vendor,
+              rendererWasUnavailable: !renderer,
+              likelyPrivacyMasked: !vendor || !renderer
+            }
           };
         } catch (e) {
           return { supported: false, error: e.message };
@@ -392,10 +428,14 @@
             supported: canvas.supported
           },
           webgl: {
+            supported: webgl.supported,
+            contextType: webgl.contextType || null,
             vendor: webgl.vendor,
             renderer: webgl.renderer,
             version: webgl.version,
-            maxTextureSize: webgl.maxTextureSize
+            maxTextureSize: webgl.maxTextureSize,
+            diagnostics: webgl.diagnostics || null,
+            error: webgl.error || null
           },
           audio,
           battery,
