@@ -7,6 +7,7 @@ const QRCode = require("qrcode");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set("trust proxy", true);
 app.use(express.json({ limit: "1mb" }));
 app.use(
   "/vendor/fingerprintjs",
@@ -16,6 +17,17 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // In-memory store for demo use. Replace with a database for production.
 const sessions = new Map();
+
+function getClientIp(req) {
+  const forwardedFor = req.headers["x-forwarded-for"];
+
+  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
+    return forwardedFor.split(",")[0].trim();
+  }
+
+  const ip = req.ip || req.socket.remoteAddress || "unknown";
+  return ip.startsWith("::ffff:") ? ip.slice(7) : ip;
+}
 
 app.get("/health", (req, res) => {
   res.json({ ok: true, timestamp: new Date().toISOString() });
@@ -56,9 +68,10 @@ app.post("/api/checkin/:token", (req, res) => {
   }
 
   const deviceId = req.body?.deviceId || "unknown";
+  const clientIp = getClientIp(req);
   const record = {
     submittedAt: new Date().toISOString(),
-    ip: req.headers["x-forwarded-for"] || req.socket.remoteAddress,
+    ip: clientIp,
     userAgent: req.get("user-agent") || "unknown",
     deviceId,
     payload: req.body || {}
@@ -69,6 +82,7 @@ app.post("/api/checkin/:token", (req, res) => {
   return res.json({
     status: "ok",
     token,
+    clientIp,
     record
   });
 });
