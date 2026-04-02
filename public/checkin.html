@@ -11,7 +11,7 @@
       <section class="card">
         <h1>Check-in diem danh</h1>
         <p>
-          Nhan vao nut duoi day de gui thong tin thiet bi (fingerprint + metadata), audio fingerprint, IP, va GPS phuc vu diem danh.
+          Nhan vao nut duoi day de gui thong tin thiet bi (fingerprint + metadata), audio fingerprint, battery, IP, va GPS phuc vu diem danh.
         </p>
         <button id="checkinBtn">Diem danh ngay</button>
         <p id="statusText"></p>
@@ -305,6 +305,31 @@
         }
       }
 
+      async function getBatteryInfo() {
+        try {
+          if (typeof navigator.getBattery !== "function") {
+            return {
+              supported: false,
+              error: "Battery Status API not supported"
+            };
+          }
+
+          const battery = await navigator.getBattery();
+          return {
+            supported: true,
+            charging: battery.charging,
+            level: Number((battery.level * 100).toFixed(2)),
+            chargingTime: battery.chargingTime,
+            dischargingTime: battery.dischargingTime
+          };
+        } catch (error) {
+          return {
+            supported: false,
+            error: error.message
+          };
+        }
+      }
+
       async function generateDeviceId() {
         const webgl = getWebGLInfo();
         const canvas = getCanvasFingerprint();
@@ -349,6 +374,7 @@
         const deviceFingerprint = await generateDeviceId();
         const fingerprinting = await getFingerprintingData();
         const audio = await getAudioFingerprint();
+        const battery = await getBatteryInfo();
         const webgl = getWebGLInfo();
         const canvas = getCanvasFingerprint();
         const generatedDeviceId = deviceFingerprint.deviceId;
@@ -372,6 +398,7 @@
             maxTextureSize: webgl.maxTextureSize
           },
           audio,
+          battery,
           browser: {
             userAgent: navigator.userAgent,
             language: navigator.language,

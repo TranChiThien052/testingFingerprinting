@@ -7,6 +7,7 @@ Ung dung Node.js don gian de diem danh:
 - Nguoi dung quet QR de mo trang check-in.
 - Trang check-in thu thap browser fingerprint + thong tin thiet bi.
 - Trang check-in thu thap them audio fingerprint bang OfflineAudioContext.
+- Trang check-in thu thap them thong tin pin (Battery Status API) neu trinh duyet ho tro.
 - Trang check-in ghi nhan them IP cua thiet bi thong qua server.
 - Trang check-in co thu thap them GPS (neu nguoi dung cap quyen vi tri).
 - Trang check-in thu thap WebGL info (vendor, renderer, version).
